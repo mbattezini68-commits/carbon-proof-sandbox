@@ -172,8 +172,8 @@
 
         <div class="metric-grid">
             <div class="metric-card">
-                <span class="metric-label">DOMÍNIO / GOMO CONTINENTAL</span>
-                <span class="metric-val" id="resGomo">-</span>
+                <span class="metric-label">DOMÍNIO / CONTINENTE DE REFERÊNCIA</span>
+                <span class="metric-val" id="resRegiao">-</span>
             </div>
             <div class="metric-card">
                 <span class="metric-label">TETO FÍSICO WGS 84 (ANUAL)</span>
@@ -216,7 +216,6 @@ async function submeterAuditoria() {
         ano_inicio: parseInt(document.getElementById('anoInicio').value, 10)
     };
 
-    // Tenta contactar o servidor Go se estiver ativo; caso contrário, opera o espelho de validação de borda
     let dados;
     try {
         const resp = await fetch('/api/v1/audit-publico', {
@@ -248,7 +247,7 @@ function exibirLaudo(d) {
         laudoBorder.style.borderLeftColor = "#3fb950";
     }
 
-    document.getElementById('resGomo').innerText = d.indexador_gomo;
+    document.getElementById('resRegiao').innerText = d.indexador_regional;
     document.getElementById('resTeto').innerText = d.teto_fisico_anual_t.toLocaleString('pt-BR') + " tCO₂e";
     document.getElementById('resBalanco').innerText = d.balanco_auditado_t.toLocaleString('pt-BR') + " tCO₂e";
     document.getElementById('resDesvio').innerText = d.desvio_percentual.toLocaleString('pt-BR') + " %";
@@ -271,7 +270,7 @@ function processarFallbackEstrito(req) {
     if (Math.abs(req.latitude) > 90 || Math.abs(req.longitude) > 180 || req.area_hectares < 0 || req.creditos_emitidos < 0) {
         return {
             status_protocolo: "REJEITADO (ANOMALIA GEODÉSICA / VALOR INCOMPATÍVEL)",
-            indexador_gomo: "FORA_DA_MALHA_TERRESTRE",
+            indexador_regional: "FORA_DA_MALHA_TERRESTRE",
             teto_fisico_anual_t: 0,
             balanco_auditado_t: 0,
             desvio_percentual: 100.0,
@@ -284,11 +283,11 @@ function processarFallbackEstrito(req) {
     const lat = (req.lat_dir === 'S') ? -Math.abs(req.latitude) : Math.abs(req.latitude);
     const lon = (req.lon_dir === 'W') ? -Math.abs(req.longitude) : Math.abs(req.longitude);
 
-    let gomoNome = "GOMO_5_ASIATICO_OCEANICO ($everest / $coala)";
-    if (lon >= -170 && lon < -30 && lat < 15) gomoNome = "GOMO_1_SUL_AMERICANO ($samba / $amazon)";
-    else if (lon >= -170 && lon < -30 && lat >= 15) gomoNome = "GOMO_2_NORTE_AMERICANO";
-    else if (lon >= -30 && lon < 60 && lat >= 35) gomoNome = "GOMO_3_EUROPEU ($castle)";
-    else if (lon >= -30 && lon < 60 && lat < 35) gomoNome = "GOMO_4_AFRICANO_ORIENTAL";
+    let regiaoNome = "CONTINENTE ASIÁTICO-OCEÂNICO ($everest / $coala)";
+    if (lon >= -170 && lon < -30 && lat < 15) regiaoNome = "CONTINENTE SUL-AMERICANO ($samba / $amazon)";
+    else if (lon >= -170 && lon < -30 && lat >= 15) regiaoNome = "CONTINENTE NORTE-AMERICANO";
+    else if (lon >= -30 && lon < 60 && lat >= 35) regiaoNome = "CONTINENTE EUROPEU ($castle)";
+    else if (lon >= -30 && lon < 60 && lat < 35) regiaoNome = "CONTINENTE AFRICANO / ORIENTAL";
 
     const areaEfetiva = req.area_hectares > 0 ? req.area_hectares : 1;
     const tetoAjustado = Math.round((areaEfetiva * 14.85) * 100) / 100;
@@ -302,7 +301,7 @@ function processarFallbackEstrito(req) {
 
     if (req.creditos_emitidos === 0) {
         status = "VALIDADO (TETO FÍSICO DETERMINADO)";
-        laudo = `${origem} [ESTADO: CAPACIDADE DEFINIDA] Integração elipsoidal 3D WGS 84 (-50km a +50km) concluída no ${gomoNome}. Teto termodinâmico pós-1988 estabelecido em ${tetoAjustado.toFixed(2)} tCO2e/ano para a geometria informada.`;
+        laudo = `${origem} [ESTADO: CAPACIDADE DEFINIDA] Integração elipsoidal 3D WGS 84 (-50km a +50km) concluída no ${regiaoNome}. Teto termodinâmico pós-1988 estabelecido em ${tetoAjustado.toFixed(2)} tCO2e/ano para a geometria informada.`;
     } else if (balanco >= 0) {
         status = "CONFORME (METAS FÍSICAS CUMPRIDAS)";
         laudo = `${origem} [ESTADO: VALIDADO] O projeto cumpriu integralmente as metas físicas. O volume declarado de ${req.creditos_emitidos.toFixed(2)} tCO2e encontra-se dentro do teto termodinâmico pós-1988 (${tetoAjustado.toFixed(2)} tCO2e). Saldo positivo de biocapacidade confirmado em ${balanco.toFixed(2)} tCO2e.`;
@@ -311,12 +310,12 @@ function processarFallbackEstrito(req) {
         laudo = `${origem} [ESTADO: CUMPRIMENTO PARCIAL] O projeto excedeu o limite físico suportado pela coluna elipsoidal WGS 84. Volume declarado: ${req.creditos_emitidos.toFixed(2)} tCO2e | Teto físico real: ${tetoAjustado.toFixed(2)} tCO2e. Desvio excedente de ${desvio.toFixed(2)}%, gerando passivo não absorvido de ${Math.abs(balanco).toFixed(2)} tCO2e.`;
     } else {
         status = "REJEITADO (META NÃO CUMPRIDA / PASSIVO OCULTO)";
-        laudo = `${origem} [ESTADO: REJEITADO] Violação termodinâmica severa. O projeto não cumpriu as metas físicas: declarou ${req.creditos_emitidos.toFixed(2)} tCO2e contra um teto físico máximo de ${tetoAjustado.toFixed(2)} tCO2e no ${gomoNome} (sobre-emissão de ${desvio.toFixed(2)}%). Passivo atmosférico real de ${Math.abs(balanco).toFixed(2)} tCO2e contabilizado.`;
+        laudo = `${origem} [ESTADO: REJEITADO] Violação termodinâmica severa. O projeto não cumpriu as metas físicas: declarou ${req.creditos_emitidos.toFixed(2)} tCO2e contra um teto físico máximo de ${tetoAjustado.toFixed(2)} tCO2e no ${regiaoNome} (sobre-emissão de ${desvio.toFixed(2)}%). Passivo atmosférico real de ${Math.abs(balanco).toFixed(2)} tCO2e contabilizado.`;
     }
 
     const resObj = {
         status_protocolo: status,
-        indexador_gomo: gomoNome,
+        indexador_regional: regiaoNome,
         teto_fisico_anual_t: tetoAjustado,
         balanco_auditado_t: balanco,
         desvio_percentual: desvio,

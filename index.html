@@ -93,6 +93,11 @@
             color: #8b949e;
             word-break: break-all;
         }
+        @media (max-width: 560px) {
+            .row { flex-direction: column; gap: 4px; }
+            .row .inline-pair { display: flex; flex-direction: row; gap: 8px; }
+        }
+        .inline-pair { display: flex; gap: 8px; }
     </style>
 </head>
 <body>
@@ -111,9 +116,9 @@
         <div class="row">
             <div style="flex: 1;">
                 <label>Latitude:</label>
-                <div class="row">
+                <div class="inline-pair">
                     <input type="number" step="any" id="latVal" placeholder="Ex: 3.1190" required>
-                    <select id="latDir" style="max-width: 110px;">
+                    <select id="latDir" style="max-width: 115px;">
                         <option value="N">Norte (N)</option>
                         <option value="S" selected>Sul (S)</option>
                     </select>
@@ -121,9 +126,9 @@
             </div>
             <div style="flex: 1;">
                 <label>Longitude:</label>
-                <div class="row">
+                <div class="inline-pair">
                     <input type="number" step="any" id="lonVal" placeholder="Ex: 60.0217" required>
-                    <select id="lonDir" style="max-width: 110px;">
+                    <select id="lonDir" style="max-width: 115px;">
                         <option value="E">Leste (E)</option>
                         <option value="W" selected>Oeste (W)</option>
                     </select>
@@ -132,9 +137,22 @@
         </div>
 
         <div class="row">
-            <div style="flex: 1;">
-                <label>Área (Hectares):</label>
-                <input type="number" step="any" id="areaHa" placeholder="Ex: 50000" required>
+            <div style="flex: 1.5;">
+                <label>Área:</label>
+                <div class="inline-pair">
+                    <input type="number" step="any" id="areaValor" placeholder="Ex: 50000" required>
+                    <select id="areaUnidade" style="max-width: 195px;">
+                        <option value="M2">Metro Quadrado (m²)</option>
+                        <option value="HA" selected>Hectare (ha)</option>
+                        <option value="KM2">Quilómetro Quadrado (km²)</option>
+                        <option value="ACRE">Acre Internacional (ac)</option>
+                        <option value="MI2">Milha Quadrada (mi²)</option>
+                        <option value="ALQ_SP">Alqueire Paulista</option>
+                        <option value="ALQ_MG">Alqueire Mineiro / Goiano</option>
+                        <option value="ALQ_NORTE">Alqueire do Norte</option>
+                        <option value="ALQ_BA">Alqueire Baiano</option>
+                    </select>
+                </div>
             </div>
             <div style="flex: 1;">
                 <label>tCO2:</label>
@@ -183,15 +201,46 @@
 </div>
 
 <script>
+const FATORES_AREA_M2 = {
+    "M2": 1.0,
+    "HA": 10000.0,
+    "KM2": 1000000.0,
+    "ACRE": 4046.8564224,
+    "MI2": 2589988.110336,
+    "ALQ_SP": 24200.0,
+    "ALQ_MG": 48400.0,
+    "ALQ_NORTE": 27225.0,
+    "ALQ_BA": 96800.0
+};
+
+function converterParaM2(valor, unidade) {
+    const fator = FATORES_AREA_M2[unidade] || 10000.0;
+    return valor * fator;
+}
+
+function formatarNumero(val) {
+    if (Math.abs(val) > 0 && Math.abs(val) < 1) {
+        return val.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+    }
+    return val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 async function submeterAuditoria() {
     const regTexto = document.getElementById('registroPublico').value.trim();
+    const areaVal = parseFloat(document.getElementById('areaValor').value);
+    const areaUnit = document.getElementById('areaUnidade').value;
+    const areaM2 = converterParaM2(areaVal, areaUnit);
+
     const payload = {
         registro_publico: regTexto,
         latitude: parseFloat(document.getElementById('latVal').value),
         lat_dir: document.getElementById('latDir').value,
         longitude: parseFloat(document.getElementById('lonVal').value),
         lon_dir: document.getElementById('lonDir').value,
-        area_hectares: parseFloat(document.getElementById('areaHa').value),
+        area_valor: areaVal,
+        area_unidade: areaUnit,
+        area_m2: areaM2,
+        area_hectares: areaM2 / 10000.0,
         creditos_emitidos: parseFloat(document.getElementById('creditos').value)
     };
 
@@ -227,9 +276,9 @@ function exibirLaudo(d) {
     }
 
     document.getElementById('resRegiao').innerText = d.indexador_regional;
-    document.getElementById('resTeto').innerText = d.teto_fisico_anual_t.toLocaleString('pt-BR') + " tCO2";
-    document.getElementById('resBalanco').innerText = d.balanco_auditado_t.toLocaleString('pt-BR') + " tCO2";
-    document.getElementById('resDesvio').innerText = d.desvio_percentual.toLocaleString('pt-BR') + " %";
+    document.getElementById('resTeto').innerText = formatarNumero(d.teto_fisico_anual_t) + " tCO2";
+    document.getElementById('resBalanco').innerText = formatarNumero(d.balanco_auditado_t) + " tCO2";
+    document.getElementById('resDesvio').innerText = d.desvio_percentual.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + " %";
     document.getElementById('resLaudo').innerText = d.laudo_tecnico;
     document.getElementById('resHash').innerText = d.prova_criptografica_sha256;
     document.getElementById('resTs').innerText = "TIMESTAMP UTC: " + d.timestamp_utc;
@@ -246,7 +295,7 @@ async function gerarSHA256Hex(texto) {
 
 function processarAuditoriaLocal(req) {
     const ts = new Date().toISOString();
-    if (Math.abs(req.latitude) > 90 || Math.abs(req.longitude) > 180 || req.area_hectares < 0 || req.creditos_emitidos < 0) {
+    if (Math.abs(req.latitude) > 90 || Math.abs(req.longitude) > 180 || req.area_m2 <= 0 || req.creditos_emitidos < 0) {
         return {
             status_protocolo: "REJEITADO (PARÂMETROS INVÁLIDOS)",
             indexador_regional: "FORA_DA_MALHA",
@@ -268,9 +317,9 @@ function processarAuditoriaLocal(req) {
     else if (lon >= -30 && lon < 60 && lat >= 35) regiaoNome = "CONTINENTE EUROPEU";
     else if (lon >= -30 && lon < 60 && lat < 35) regiaoNome = "CONTINENTE AFRICANO / ORIENTAL";
 
-    const areaEfetiva = req.area_hectares > 0 ? req.area_hectares : 1;
-    const tetoAjustado = Math.round((areaEfetiva * 14.85) * 100) / 100;
-    const balanco = Math.round((tetoAjustado - req.creditos_emitidos) * 100) / 100;
+    const areaHa = req.area_m2 / 10000.0;
+    const tetoAjustado = areaHa * 14.85;
+    const balanco = tetoAjustado - req.creditos_emitidos;
     const desvio = (tetoAjustado > 0 && req.creditos_emitidos > 0)
         ? Math.round(((req.creditos_emitidos - tetoAjustado) / tetoAjustado) * 10000) / 100
         : 0;
@@ -280,16 +329,16 @@ function processarAuditoriaLocal(req) {
 
     if (req.creditos_emitidos === 0) {
         status = "VALIDADO (LIMITE FÍSICO DETERMINADO)";
-        laudo = `${origem} [ESTADO: CAPACIDADE DEFINIDA] Auditoria concluída no ${regiaoNome}. Limite físico estabelecido em ${tetoAjustado.toFixed(2)} tCO2/ano para a área informada.`;
+        laudo = `${origem} [ESTADO: CAPACIDADE DEFINIDA] Auditoria concluída no ${regiaoNome}. Limite físico estabelecido em ${formatarNumero(tetoAjustado)} tCO2/ano para a área informada.`;
     } else if (balanco >= 0) {
         status = "CONFORME (METAS FÍSICAS CUMPRIDAS)";
-        laudo = `${origem} [ESTADO: VALIDADO] O registro cumpriu integralmente as metas físicas no ${regiaoNome}. O volume de ${req.creditos_emitidos.toFixed(2)} tCO2 encontra-se dentro do limite suportado (${tetoAjustado.toFixed(2)} tCO2). Saldo líquido confirmado em ${balanco.toFixed(2)} tCO2.`;
+        laudo = `${origem} [ESTADO: VALIDADO] O registro cumpriu integralmente as metas físicas no ${regiaoNome}. O volume de ${formatarNumero(req.creditos_emitidos)} tCO2 encontra-se dentro do limite suportado (${formatarNumero(tetoAjustado)} tCO2). Saldo líquido confirmado em ${formatarNumero(balanco)} tCO2.`;
     } else if (desvio > 0 && desvio <= 35.0) {
         status = "CUMPRIMENTO PARCIAL (DÉFICIT MODERADO)";
-        laudo = `${origem} [ESTADO: CUMPRIMENTO PARCIAL] O volume (${req.creditos_emitidos.toFixed(2)} tCO2) excedeu o limite físico apurado (${tetoAjustado.toFixed(2)} tCO2) em ${desvio.toFixed(2)}%, gerando passivo não absorvido de ${Math.abs(balanco).toFixed(2)} tCO2.`;
+        laudo = `${origem} [ESTADO: CUMPRIMENTO PARCIAL] O volume (${formatarNumero(req.creditos_emitidos)} tCO2) excedeu o limite físico apurado (${formatarNumero(tetoAjustado)} tCO2) em ${desvio.toFixed(2)}%, gerando passivo não absorvido de ${formatarNumero(Math.abs(balanco))} tCO2.`;
     } else {
         status = "REJEITADO (META NÃO CUMPRIDA / PASSIVO OCULTO)";
-        laudo = `${origem} [ESTADO: REJEITADO] Violação física severa no ${regiaoNome}. Volume de ${req.creditos_emitidos.toFixed(2)} tCO2 contra limite máximo de ${tetoAjustado.toFixed(2)} tCO2 (sobre-emissão de ${desvio.toFixed(2)}%). Passivo real de ${Math.abs(balanco).toFixed(2)} tCO2 contabilizado.`;
+        laudo = `${origem} [ESTADO: REJEITADO] Violação física severa no ${regiaoNome}. Volume de ${formatarNumero(req.creditos_emitidos)} tCO2 contra limite máximo de ${formatarNumero(tetoAjustado)} tCO2 (sobre-emissão de ${desvio.toFixed(2)}%). Passivo real de ${formatarNumero(Math.abs(balanco))} tCO2 contabilizado.`;
     }
 
     const resObj = {
@@ -303,7 +352,7 @@ function processarAuditoriaLocal(req) {
         timestamp_utc: ts
     };
 
-    gerarSHA256Hex(`BCA|${req.registro_publico}|${lat}|${lon}|${req.area_hectares}|${req.creditos_emitidos}|${ts}`).then(h => {
+    gerarSHA256Hex(`BCA|${req.registro_publico}|${lat}|${lon}|${req.area_m2}|${req.creditos_emitidos}|${ts}`).then(h => {
         document.getElementById('resHash').innerText = h;
     });
 

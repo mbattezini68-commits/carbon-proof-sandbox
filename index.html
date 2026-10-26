@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0d1117">
-    <title>Carbon Proof Acre Protocol | Oráculo Geodésico WGS 84</title>
+    <title>Carbon Proof Acre Protocol (BCA)</title>
     <link rel="manifest" href="manifest.json">
     <style>
         body {
@@ -18,7 +18,7 @@
         }
         .container {
             width: 100%;
-            max-width: 720px;
+            max-width: 680px;
             background: #161b22;
             padding: 28px;
             border-radius: 6px;
@@ -99,48 +99,31 @@
 
 <div class="container">
     <h2>Carbon Proof Acre Protocol (BCA)</h2>
-    <p class="subtitle">Oráculo de Auditoria Geodésica Tridimensional (WGS 84 Estrito | Marco Pós-1988 | Zero-Disk)</p>
+    <p class="subtitle">Oráculo de Auditoria e Validação de Conformidade Física</p>
     
     <form id="auditForm" onsubmit="event.preventDefault(); submeterAuditoria();">
         
-        <div class="row">
-            <div style="flex: 1;">
-                <label>Certificadora / Registo Público:</label>
-                <select id="registry">
-                    <option value="TODAS">Varredura Global (Todas as Certificadoras)</option>
-                    <option value="VERRA_VCS">Verra (VCS)</option>
-                    <option value="GOLD_STANDARD">Gold Standard</option>
-                    <option value="UNFCCC_CDM">UNFCCC (CDM / MDL)</option>
-                    <option value="ART_TREES">ART-TREES</option>
-                    <option value="ACR">American Carbon Registry (ACR)</option>
-                    <option value="CAR">Climate Action Reserve (CAR)</option>
-                    <option value="GCC">Global Carbon Council (GCC)</option>
-                    <option value="PLAN_VIVO">Plan Vivo</option>
-                    <option value="CAD_TRUST">Climate Action Data Trust</option>
-                </select>
-            </div>
-            <div style="flex: 1;">
-                <label>ID Público do Projeto (Opcional):</label>
-                <input type="text" id="projectId" placeholder="Ex: VCS-2250 ou deixe em branco">
-            </div>
+        <div>
+            <label>Registro Público:</label>
+            <input type="text" id="registroPublico" placeholder="Ex: Verra VCS-984, Gold Standard GS-8820 (ou deixe em branco)">
         </div>
 
         <div class="row">
             <div style="flex: 1;">
-                <label>Latitude do Polígono (0° a 90°):</label>
+                <label>Latitude:</label>
                 <div class="row">
-                    <input type="number" step="any" id="latVal" placeholder="Ex: 8.7756" required>
-                    <select id="latDir" style="max-width: 115px;">
+                    <input type="number" step="any" id="latVal" placeholder="Ex: 3.1190" required>
+                    <select id="latDir" style="max-width: 110px;">
                         <option value="N">Norte (N)</option>
                         <option value="S" selected>Sul (S)</option>
                     </select>
                 </div>
             </div>
             <div style="flex: 1;">
-                <label>Longitude do Polígono (0° a 180°):</label>
+                <label>Longitude:</label>
                 <div class="row">
-                    <input type="number" step="any" id="lonVal" placeholder="Ex: 63.9039" required>
-                    <select id="lonDir" style="max-width: 115px;">
+                    <input type="number" step="any" id="lonVal" placeholder="Ex: 60.0217" required>
+                    <select id="lonDir" style="max-width: 110px;">
                         <option value="E">Leste (E)</option>
                         <option value="W" selected>Oeste (W)</option>
                     </select>
@@ -150,20 +133,16 @@
 
         <div class="row">
             <div style="flex: 1;">
-                <label>Área Delimitada (Hectares):</label>
-                <input type="number" step="any" id="areaHa" placeholder="Ex: 1500" value="1000" required>
+                <label>Área (Hectares):</label>
+                <input type="number" step="any" id="areaHa" placeholder="Ex: 50000" required>
             </div>
             <div style="flex: 1;">
-                <label>Créditos Emitidos / Prometidos (tCO₂e):</label>
-                <input type="number" step="any" id="creditos" placeholder="Ex: 50000 (0 para apenas consultar teto)" value="0" required>
-            </div>
-            <div style="max-width: 140px;">
-                <label>Ano Base:</label>
-                <input type="number" id="anoInicio" value="2015" required>
+                <label>tCO2:</label>
+                <input type="number" step="any" id="creditos" placeholder="Ex: 450000" value="0" required>
             </div>
         </div>
 
-        <button type="submit">Executar Auditoria Oracular (Caixa Preta)</button>
+        <button type="submit">Executar Auditoria</button>
     </form>
 
     <div id="resultBox" class="result">
@@ -173,19 +152,19 @@
 
         <div class="metric-grid">
             <div class="metric-card">
-                <span class="metric-label">DOMÍNIO / CONTINENTE DE REFERÊNCIA</span>
+                <span class="metric-label">CONTINENTE DE REFERÊNCIA</span>
                 <span class="metric-val" id="resRegiao">-</span>
             </div>
             <div class="metric-card">
-                <span class="metric-label">TETO FÍSICO WGS 84 (ANUAL)</span>
+                <span class="metric-label">LIMITE FÍSICO ANUAL</span>
                 <span class="metric-val" id="resTeto">-</span>
             </div>
             <div class="metric-card">
-                <span class="metric-label">BALANÇO AUDITADO (LÍQUIDO)</span>
+                <span class="metric-label">BALANÇO AUDITADO</span>
                 <span class="metric-val" id="resBalanco">-</span>
             </div>
             <div class="metric-card">
-                <span class="metric-label">DESVIO SOBRE TETO FÍSICO</span>
+                <span class="metric-label">DESVIO APURADO</span>
                 <span class="metric-val" id="resDesvio">-</span>
             </div>
         </div>
@@ -205,16 +184,15 @@
 
 <script>
 async function submeterAuditoria() {
+    const regTexto = document.getElementById('registroPublico').value.trim();
     const payload = {
-        registry: document.getElementById('registry').value,
-        project_id: document.getElementById('projectId').value.trim(),
+        registro_publico: regTexto,
         latitude: parseFloat(document.getElementById('latVal').value),
         lat_dir: document.getElementById('latDir').value,
         longitude: parseFloat(document.getElementById('lonVal').value),
         lon_dir: document.getElementById('lonDir').value,
         area_hectares: parseFloat(document.getElementById('areaHa').value),
-        creditos_emitidos: parseFloat(document.getElementById('creditos').value),
-        ano_inicio: parseInt(document.getElementById('anoInicio').value, 10)
+        creditos_emitidos: parseFloat(document.getElementById('creditos').value)
     };
 
     let dados;
@@ -226,7 +204,7 @@ async function submeterAuditoria() {
         });
         dados = await resp.json();
     } catch (e) {
-        dados = processarFallbackEstrito(payload);
+        dados = processarAuditoriaLocal(payload);
     }
 
     exibirLaudo(dados);
@@ -249,8 +227,8 @@ function exibirLaudo(d) {
     }
 
     document.getElementById('resRegiao').innerText = d.indexador_regional;
-    document.getElementById('resTeto').innerText = d.teto_fisico_anual_t.toLocaleString('pt-BR') + " tCO₂e";
-    document.getElementById('resBalanco').innerText = d.balanco_auditado_t.toLocaleString('pt-BR') + " tCO₂e";
+    document.getElementById('resTeto').innerText = d.teto_fisico_anual_t.toLocaleString('pt-BR') + " tCO2";
+    document.getElementById('resBalanco').innerText = d.balanco_auditado_t.toLocaleString('pt-BR') + " tCO2";
     document.getElementById('resDesvio').innerText = d.desvio_percentual.toLocaleString('pt-BR') + " %";
     document.getElementById('resLaudo').innerText = d.laudo_tecnico;
     document.getElementById('resHash').innerText = d.prova_criptografica_sha256;
@@ -266,17 +244,17 @@ async function gerarSHA256Hex(texto) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function processarFallbackEstrito(req) {
+function processarAuditoriaLocal(req) {
     const ts = new Date().toISOString();
     if (Math.abs(req.latitude) > 90 || Math.abs(req.longitude) > 180 || req.area_hectares < 0 || req.creditos_emitidos < 0) {
         return {
-            status_protocolo: "REJEITADO (ANOMALIA GEODÉSICA / VALOR INCOMPATÍVEL)",
-            indexador_regional: "FORA_DA_MALHA_TERRESTRE",
+            status_protocolo: "REJEITADO (PARÂMETROS INVÁLIDOS)",
+            indexador_regional: "FORA_DA_MALHA",
             teto_fisico_anual_t: 0,
             balanco_auditado_t: 0,
             desvio_percentual: 100.0,
-            laudo_tecnico: "[ESTADO: BLOQUEADO PELO ORÁCULO] De acordo com os dados fornecidos, os valores inseridos violam os limites matemáticos da matriz elipsoidal WGS 84 (Latitude máxima: 90° | Longitude máxima: 180° | Área e Créditos não-negativos). Auditoria rejeitada por impossibilidade física.",
-            prova_criptografica_sha256: "ERR_OUT_OF_BOUNDS_WGS84_" + Date.now().toString(16),
+            laudo_tecnico: "[ESTADO: BLOQUEADO] Os parâmetros inseridos violam os limites físicos e geográficos admitidos pelo protocolo. Auditoria rejeitada.",
+            prova_criptografica_sha256: "ERR_OUT_OF_BOUNDS_" + Date.now().toString(16),
             timestamp_utc: ts
         };
     }
@@ -284,10 +262,10 @@ function processarFallbackEstrito(req) {
     const lat = (req.lat_dir === 'S') ? -Math.abs(req.latitude) : Math.abs(req.latitude);
     const lon = (req.lon_dir === 'W') ? -Math.abs(req.longitude) : Math.abs(req.longitude);
 
-    let regiaoNome = "CONTINENTE ASIÁTICO-OCEÂNICO ($everest / $coala)";
-    if (lon >= -170 && lon < -30 && lat < 15) regiaoNome = "CONTINENTE SUL-AMERICANO ($samba / $amazon)";
+    let regiaoNome = "CONTINENTE ASIÁTICO-OCEÂNICO";
+    if (lon >= -170 && lon < -30 && lat < 15) regiaoNome = "CONTINENTE SUL-AMERICANO";
     else if (lon >= -170 && lon < -30 && lat >= 15) regiaoNome = "CONTINENTE NORTE-AMERICANO";
-    else if (lon >= -30 && lon < 60 && lat >= 35) regiaoNome = "CONTINENTE EUROPEU ($castle)";
+    else if (lon >= -30 && lon < 60 && lat >= 35) regiaoNome = "CONTINENTE EUROPEU";
     else if (lon >= -30 && lon < 60 && lat < 35) regiaoNome = "CONTINENTE AFRICANO / ORIENTAL";
 
     const areaEfetiva = req.area_hectares > 0 ? req.area_hectares : 1;
@@ -297,21 +275,21 @@ function processarFallbackEstrito(req) {
         ? Math.round(((req.creditos_emitidos - tetoAjustado) / tetoAjustado) * 10000) / 100
         : 0;
 
-    const origem = req.project_id ? `[ORIGEM: PROJETO ${req.project_id} (${req.registry})]` : `[ORIGEM: POLÍGONO GEODÉSICO DIRETO]`;
+    const origem = req.registro_publico ? `[REGISTRO PÚBLICO: ${req.registro_publico.toUpperCase()}]` : `[AUDITORIA DIRETA]`;
     let status, laudo;
 
     if (req.creditos_emitidos === 0) {
-        status = "VALIDADO (TETO FÍSICO DETERMINADO)";
-        laudo = `${origem} [ESTADO: CAPACIDADE DEFINIDA] Integração elipsoidal 3D WGS 84 (-50km a +50km) concluída no ${regiaoNome}. Teto termodinâmico pós-1988 estabelecido em ${tetoAjustado.toFixed(2)} tCO2e/ano para a geometria informada.`;
+        status = "VALIDADO (LIMITE FÍSICO DETERMINADO)";
+        laudo = `${origem} [ESTADO: CAPACIDADE DEFINIDA] Auditoria concluída no ${regiaoNome}. Limite físico estabelecido em ${tetoAjustado.toFixed(2)} tCO2/ano para a área informada.`;
     } else if (balanco >= 0) {
         status = "CONFORME (METAS FÍSICAS CUMPRIDAS)";
-        laudo = `${origem} [ESTADO: VALIDADO] O projeto cumpriu integralmente as metas físicas. O volume declarado de ${req.creditos_emitidos.toFixed(2)} tCO2e encontra-se dentro do teto termodinâmico pós-1988 (${tetoAjustado.toFixed(2)} tCO2e). Saldo positivo de biocapacidade confirmado em ${balanco.toFixed(2)} tCO2e.`;
+        laudo = `${origem} [ESTADO: VALIDADO] O registro cumpriu integralmente as metas físicas no ${regiaoNome}. O volume de ${req.creditos_emitidos.toFixed(2)} tCO2 encontra-se dentro do limite suportado (${tetoAjustado.toFixed(2)} tCO2). Saldo líquido confirmado em ${balanco.toFixed(2)} tCO2.`;
     } else if (desvio > 0 && desvio <= 35.0) {
         status = "CUMPRIMENTO PARCIAL (DÉFICIT MODERADO)";
-        laudo = `${origem} [ESTADO: CUMPRIMENTO PARCIAL] O projeto excedeu o limite físico suportado pela coluna elipsoidal WGS 84. Volume declarado: ${req.creditos_emitidos.toFixed(2)} tCO2e | Teto físico real: ${tetoAjustado.toFixed(2)} tCO2e. Desvio excedente de ${desvio.toFixed(2)}%, gerando passivo não absorvido de ${Math.abs(balanco).toFixed(2)} tCO2e.`;
+        laudo = `${origem} [ESTADO: CUMPRIMENTO PARCIAL] O volume (${req.creditos_emitidos.toFixed(2)} tCO2) excedeu o limite físico apurado (${tetoAjustado.toFixed(2)} tCO2) em ${desvio.toFixed(2)}%, gerando passivo não absorvido de ${Math.abs(balanco).toFixed(2)} tCO2.`;
     } else {
         status = "REJEITADO (META NÃO CUMPRIDA / PASSIVO OCULTO)";
-        laudo = `${origem} [ESTADO: REJEITADO] Violação termodinâmica severa. O projeto não cumpriu as metas físicas: declarou ${req.creditos_emitidos.toFixed(2)} tCO2e contra um teto físico máximo de ${tetoAjustado.toFixed(2)} tCO2e no ${regiaoNome} (sobre-emissão de ${desvio.toFixed(2)}%). Passivo atmosférico real de ${Math.abs(balanco).toFixed(2)} tCO2e contabilizado.`;
+        laudo = `${origem} [ESTADO: REJEITADO] Violação física severa no ${regiaoNome}. Volume de ${req.creditos_emitidos.toFixed(2)} tCO2 contra limite máximo de ${tetoAjustado.toFixed(2)} tCO2 (sobre-emissão de ${desvio.toFixed(2)}%). Passivo real de ${Math.abs(balanco).toFixed(2)} tCO2 contabilizado.`;
     }
 
     const resObj = {
@@ -325,7 +303,7 @@ function processarFallbackEstrito(req) {
         timestamp_utc: ts
     };
 
-    gerarSHA256Hex(`BCA_WGS84|${req.project_id}|${lat}|${lon}|${req.area_hectares}|${req.creditos_emitidos}|${ts}`).then(h => {
+    gerarSHA256Hex(`BCA|${req.registro_publico}|${lat}|${lon}|${req.area_hectares}|${req.creditos_emitidos}|${ts}`).then(h => {
         document.getElementById('resHash').innerText = h;
     });
 
